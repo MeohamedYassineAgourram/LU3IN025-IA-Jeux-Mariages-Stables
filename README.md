@@ -112,3 +112,50 @@ En passant les résultats obtenus à la Question 5 dans ce vérificateur, nous o
 * *``Paires instables (GS Parcours)  : 0 -> []``*               
 
 Ces listes vides prouvent de manière empirique que les deux variantes de l'algorithme de Gale-Shapley implémentées aux questions 3 et 4 fonctionnent correctement sur cette instance et retournent bien des mariages parfaitement stables.
+
+
+## 2 Évolution du temps de calcul
+
+### Q7. Génération de matrices de préférences aléatoires
+Pour évaluer la montée en charge de nos algorithmes, nous avons implémenté deux générateurs d'instances aléatoires. Afin de rendre le code modulable, nous avons ajouté le nombre de parcours $m$ en paramètre avec 9 comme valeur par défaut.
+
+* **Matrice $C_E$ (Étudiants) :** La fonction `generer_CE(n, m)` crée une liste de $n$ listes. Pour chaque étudiant, nous utilisons la fonction `random.sample(range(m), m)` de la bibliothèque standard de Python. Cela génère une permutation aléatoire uniforme des entiers de $0$ à $m-1$, représentant les préférences de l'étudiant, en temps $O(m)$. La complexité totale de la génération est donc en $\mathcal{O}(n \times m)$.
+* **Matrice $C_P$ (Parcours) :** De manière symétrique, la fonction `generer_CP(n, m)` crée une liste de $m$ listes. Pour chaque parcours, nous générons une permutation aléatoire des entiers de $0$ à $n-1$ via `random.sample(range(n), n)`, ce qui s'effectue en temps $O(n)$. La complexité totale est également en $\mathcal{O}(n \times m)$.
+
+Ces deux fonctions renvoient des structures de données strictement identiques (des listes de listes) à celles produites par nos fonctions de parsing de la Question 1. Ainsi, elles sont directement compatibles avec nos implémentations de l'algorithme de Gale-Shapley (Q3 et Q4).
+
+### Q8. Mesures expérimentales du temps de calcul
+Pour analyser le comportement pratique de nos algorithmes face au passage à l'échelle, nous avons mis en place une campagne d'expérimentation avec le protocole suivant :
+
+* **Variation de la taille de l'instance** : Nous avons fait varier le nombre d'étudiants $n$ de **200 à 2000** par pas de 200, tout en gardant le nombre de parcours $m$ fixé à 9.
+* **Génération des capacités** : Pour chaque valeur de $n$, nous avons réparti les capacités de manière équilibrée et déterministe. Chaque parcours reçoit une capacité de base de $n \div 9$ (division entière), et le reste (modulo) est distribué unité par unité sur les premiers parcours afin que la somme totale des capacités vaille exactement $n$.
+* **Robustesse de la mesure** : Nous avons généré 10 instances aléatoires distinctes pour chaque valeur de $n$. Le temps retenu et affiché sur la courbe est la **moyenne des 10 exécutions**, mesurée grâce à la fonction haute précision `time.perf_counter()` de Python qui contrairement à `time.time()`, cette fonction est conçue spécifiquement pour mesurer des performances d'exécution (en nanosecondes). C'est beaucoup plus précis sur des algorithmes rapides.
+
+**Résultats obtenus :**
+*(Le graphique ci-dessous a été généré via la bibliothèque `matplotlib`)*
+
+![Graphe Q8 - Temps d'exécution moyen](graphe_Q8.png)
+
+### Q9. Analyse de la complexité observée
+**1. Observation empirique (Lecture du graphique) :**                
+Sur le graphique généré à la question précédente, nous observons que le temps de calcul moyen pour les deux variantes de l'algorithme croît de manière strictement proportionnelle au nombre d'étudiants $n$. Concrètement, lorsque la taille de l'instance double (par exemple en passant de $n=500$ à $n=1000$), le temps d'exécution double également. Sur un graphique, cette croissance proportionnelle se traduit par des lignes droites. Cela caractérise visuellement et empiriquement une **complexité linéaire**, notée $\mathcal{O}(n)$.
+
+**2. Cohérence avec l'analyse théorique :**            
+Ce comportement pratique valide parfaitement notre analyse mathématique théorique. En effet, nous avons établi aux questions 3 et 4 que la complexité temporelle théorique de nos algorithmes était de $\mathcal{O}(n \times m)$ dans le pire des cas, en considérant le coût des opérations internes (comme l'insertion dans un tas de petite taille) comme asymptotiquement négligeable.
+
+L'apparente contradiction entre la théorie $\mathcal{O}(n \times m)$ et la pratique $\mathcal{O}(n)$ s'explique par notre protocole expérimental :
+* Dans nos tests, nous faisons varier $n$ (de 200 à 2000), mais le nombre de parcours $m$ reste une **constante fixée à 9**.
+* La complexité théorique pour cette expérience devient donc $\mathcal{O}(n \times 9)$.
+* En notation asymptotique (Grand O), les constantes multiplicatives sont ignorées car elles ne modifient pas l'allure générale de la courbe de croissance. Mathématiquement, $\mathcal{O}(9n)$ équivaut strictement à $\mathcal{O}(n)$.
+
+La théorie prédisait donc une ligne droite pour un nombre de parcours fixe, ce qui est exactement ce que l'expérience nous démontre.
+
+**3. Analyse de la différence de pente (La constante cachée) :**               
+Bien que les deux courbes soient des droites de complexité linéaire, nous remarquons que la courbe rouge (algorithme "côté parcours") possède une pente plus raide que la courbe bleue (algorithme "côté étudiants"). Elle prend un peu plus de temps pour traiter le même nombre d'étudiants.
+
+Cela s'explique par la **constante cachée** de la notation $\mathcal{O}(n)$. En réalité, le temps d'exécution est $T(n) = c \times n$. Ici, la constante $c$ (le temps de traitement de base pour un étudiant) est plus élevée dans la version "parcours" à cause de la logique de l'algorithme:
+
+* **Dans la version "côté étudiants"** : Un étudiant ne recherche qu'une seule affectation. Une fois accepté, il ne retourne dans la boucle d'affectation que s'il est explicitement remplacé par un meilleur candidat.
+* **Dans la version "côté parcours"** : Les parcours doivent remplir des capacités d'accueil $C_i$ importantes [cite: 1, 457] (en moyenne $C \approx n/9$, soit plus de 220 places pour $n=2000$). À chaque fois qu'un seul de ces étudiants reçoit une meilleure offre ailleurs, le master perd une place, redevient "incomplet", et doit obligatoirement retourner dans la file d'attente (la pile `masters_actifs`) pour formuler de nouvelles propositions.
+
+Ce phénomène de "va-et-vient" continu pour combler les places libérées génère un nombre de ré-itérations bien plus important, ce qui se traduit par une pente plus forte sur le graphique, tout en conservant une croissance globalement linéaire.
