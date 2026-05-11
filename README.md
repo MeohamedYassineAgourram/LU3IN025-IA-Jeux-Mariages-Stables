@@ -258,9 +258,9 @@ $$\forall i \in \{0, \dots, 12\}, \quad \sum_{j=0}^{9} u_{E}(i, j) \cdot x_{i,j}
 ---
 
 ### Q14. Résolution avec Gurobi (Recherche du plus petit $k$)
-En exécutant le modèle itérativement, le solveur Gurobi a déterminé que **le plus petit $k$ permettant d'obtenir une affectation valide est $k=4$**.
+En exécutant le modèle itérativement, le solveur Gurobi a déterminé que **le plus petit $k$ permettant d'obtenir une affectation valide est $k=5$**.
 
-**Affectation obtenue ($k=4$) :**
+**Affectation obtenue ($k=5$) :**
 * Étudiant  0 affecté au parcours 8 (Son choix n°5)
 * Étudiant  1 affecté au parcours 5 (Son choix n°2)
 * Étudiant  2 affecté au parcours 4 (Son choix n°1)
@@ -301,7 +301,7 @@ En exécutant le modèle itérativement, le solveur Gurobi a déterminé que **l
 
 #### **3. Équité (Utilité minimale)**
 * Pour atteindre son score record en **Q12**, Gurobi a dû sacrifier l'étudiant 11 (relégué à son 6ème choix, utilité = 5).
-* La **Q14** corrige ça : en forçant `k=4` (Top 4 garanti), on crée un filet de sécurité. L'utilité minimale remonte à 6. Le score total baisse un peu (227), mais on évite les extrêmes.
+* La **Q14** corrige ça : en forçant `k=5` (Top 5 garanti), on crée un filet de sécurité. L'utilité minimale remonte à 6. Le score total baisse un peu (227), mais on évite les extrêmes.
 
 #### **Bilan**
 Sur notre instance, **Gale-Shapley est le meilleur choix pratique** : il garantit la stabilité absolue avec d'excellents scores. Les modèles PLNE sont intéressants uniquement si une administration impose les affectations (pas de départs possibles) et veut régler mathématiquement le curseur entre l'efficacité globale (Q12) et la justice sociale (Q11/Q14).

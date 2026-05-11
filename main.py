@@ -756,7 +756,7 @@ def Q14_gurobi(CE, CP, capacites):
         modele.addConstrs((gp.quicksum(x[i, j] for i in range(n_etu)) <= capacites[j] for j in range(n_parcours)), name="Capacite")
         
         # NOUVELLE CONTRAINTE Q13 : Garantie du Top k
-        limite_utilite = n_parcours - k
+        limite_utilite = n_parcours - k + 1
         modele.addConstrs((gp.quicksum(U_E[i][j] * x[i, j] for j in range(n_parcours)) >= limite_utilite for i in range(n_etu)), name="Top_k")
         
         # Exécution de l'optimisation
