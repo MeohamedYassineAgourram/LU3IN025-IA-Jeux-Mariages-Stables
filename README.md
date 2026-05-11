@@ -1,5 +1,16 @@
 # TME - semaines 1 à 3
 
+## Introduction et présentation du projet
+**Reformulation du sujet :**
+L'objectif de ce projet est d'étudier et d'implémenter des algorithmes d'affectation centralisée visant à répartir des étudiants dans des parcours de Master. Nous analysons tout d'abord l'algorithme de Gale-Shapley (orienté étudiants puis parcours) pour garantir la **stabilité** des mariages. Dans un second temps, nous utilisons la programmation linéaire en nombres entiers (PLNE) via le solveur Gurobi pour explorer d'autres paradigmes d'affectation basés sur les scores de Borda, en optimisant soit **l'équité** (max-min), soit **l'efficacité** (somme des utilités).
+
+**Architecture du code et jeux d'essais :**
+Le projet est centralisé dans le fichier principal `main.py`, qui contient l'ensemble des algorithmes et modèles mathématiques. 
+* **Les fonctions principales** : `gale_shapley_etudiants` et `gale_shapley_parcours` (Partie 1), les générateurs aléatoires `generer_CE` et `generer_CP` (Partie 2), et les modèles d'optimisation `Q11_gurobi`, `Q12_gurobi`, `Q14_gurobi` (Partie 3).
+* **Les jeux d'essais** : Pour valider nos algorithmes, nous utilisons les fichiers statiques `PrefEtu.txt` (13 étudiants) et `PrefSpe.txt` (10 masters) pour les parties 1 et 3. Pour la partie 2 (tests de montée en charge), nous avons implémenté des générateurs de permutations aléatoires permettant de simuler des cohortes allant de 200 à 2000 étudiants.
+
+---
+
 ## 1 Problème et aﬀectation:
 
 ### Q1. Lecture des fichiers et extraction des matrices $C_E$ et $C_P$
