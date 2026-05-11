@@ -4,6 +4,9 @@ import random
 import time
 import matplotlib.pyplot as plt
 
+import gurobipy as gp
+from gurobipy import GRB
+
 #print("bonjour")
 #maListe=exemple.lectureFichier("test.txt") # Execution de la methode lectureFichier du fichier exemple.
 #print(maListe)
@@ -423,3 +426,398 @@ if __name__ == "__main__":
     print(" TRACAGE DES GRAPHES ")
     print("=======================================")
     mesurer_temps_execution()
+    print("")
+
+
+# QUESTION 10: =========================================================================================================
+def gale_shapley_etudiants_iter(CE, CP, capacites):
+    """Version de GS Étudiants qui retourne uniquement le nombre d'itérations."""
+    n_etu = len(CE)
+    n_parcours = len(CP)
+    
+    RP = [[0] * n_etu for _ in range(n_parcours)]
+    for j in range(n_parcours):
+        for rang, etu in enumerate(CP[j]):
+            RP[j][etu] = rang
+            
+    libres = list(range(n_etu))
+    prochain_choix = [0] * n_etu
+    affectations = [[] for _ in range(n_parcours)]
+    
+    nb_iterations = 0
+    
+    while libres:
+        nb_iterations += 1 # ON COMPTE CHAQUE TOUR DE BOUCLE
+        etu = libres.pop()
+        
+        if prochain_choix[etu] >= n_parcours:
+            continue
+            
+        parcours = CE[etu][prochain_choix[etu]]
+        prochain_choix[etu] += 1
+        rang_etu = RP[parcours][etu]
+        
+        if len(affectations[parcours]) < capacites[parcours]:
+            heapq.heappush(affectations[parcours], (-rang_etu, etu))
+        else:
+            pire_rang_neg, pire_etu = affectations[parcours][0]
+            pire_rang = -pire_rang_neg
+            
+            if rang_etu < pire_rang:
+                heapq.heappop(affectations[parcours])
+                heapq.heappush(affectations[parcours], (-rang_etu, etu))
+                libres.append(pire_etu)
+            else:
+                libres.append(etu)
+                
+    return nb_iterations
+
+def gale_shapley_parcours_iter(CE, CP, capacites):
+    """Version de GS Parcours qui retourne uniquement le nombre d'itérations."""
+    n_etu = len(CE)
+    n_parcours = len(CP)
+    
+    RE = [[0] * n_parcours for _ in range(n_etu)]
+    for i in range(n_etu):
+        for rang, master in enumerate(CE[i]):
+            RE[i][master] = rang
+            
+    masters_actifs = []
+    for j in range(n_parcours):
+        if capacites[j] > 0:
+            masters_actifs.append(j)
+            
+    prochain_choix = [0] * n_parcours
+    places_prises = [0] * n_parcours
+    affectation_etudiant = [-1] * n_etu
+    
+    nb_iterations = 0
+    
+    while masters_actifs:
+        nb_iterations += 1 # ON COMPTE CHAQUE TOUR DE BOUCLE
+        m = masters_actifs.pop()
+        
+        if prochain_choix[m] >= n_etu:
+            continue
+            
+        etu = CP[m][prochain_choix[m]]
+        prochain_choix[m] += 1
+        m_courant = affectation_etudiant[etu]
+        
+        if m_courant == -1:
+            affectation_etudiant[etu] = m
+            places_prises[m] += 1
+            if places_prises[m] < capacites[m]:
+                masters_actifs.append(m)
+        else:
+            if RE[etu][m] < RE[etu][m_courant]:
+                affectation_etudiant[etu] = m
+                places_prises[m] += 1
+                places_prises[m_courant] -= 1
+                if places_prises[m] < capacites[m]:
+                    masters_actifs.append(m)
+                masters_actifs.append(m_courant)
+            else:
+                masters_actifs.append(m)
+                
+    return nb_iterations
+
+def mesurer_iterations():
+    """
+    Fonction principale pour la Q10 : trace la courbe du nombre moyen d'itérations.
+    """
+    valeurs_n = list(range(200, 2001, 200))
+    iter_moyenne_etu = []
+    iter_moyenne_parcours = []
+    nb_tests = 10
+    m = 9
+    
+    print("Début des tests d'itérations (cela peut prendre quelques secondes...)")
+    
+    for n in valeurs_n:
+        somme_iter_etu = 0
+        somme_iter_parcours = 0
+        capacites = generer_capacites(n, m)
+        
+        for _ in range(nb_tests):
+            CE = generer_CE(n, m)
+            CP = generer_CP(n, m)
+            
+            # On additionne les itérations renvoyées par nos nouvelles fonctions
+            somme_iter_etu += gale_shapley_etudiants_iter(CE, CP, capacites)
+            somme_iter_parcours += gale_shapley_parcours_iter(CE, CP, capacites)
+            
+        iter_moyenne_etu.append(somme_iter_etu / nb_tests)
+        iter_moyenne_parcours.append(somme_iter_parcours / nb_tests)
+        print(f"n = {n:4d} traité avec succès (Itérations).")
+        
+    # --- Tracé de la courbe avec Matplotlib ---
+    plt.figure(figsize=(10, 6))
+    plt.plot(valeurs_n, iter_moyenne_etu, label="GS côté Étudiants (Itérations)", marker='o', linestyle='-', color='blue')
+    plt.plot(valeurs_n, iter_moyenne_parcours, label="GS côté Parcours (Itérations)", marker='s', linestyle='-', color='red')
+    
+    plt.title("Nombre moyen d'itérations de Gale-Shapley en fonction de n")
+    plt.xlabel("Nombre d'étudiants n")
+    plt.ylabel("Nombre moyen d'itérations (Tours de boucle)")
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.7)
+    
+    plt.savefig("graphe_Q10.png")
+    print("\nLe graphique a été sauvegardé sous le nom 'graphe_Q10.png'.")
+    plt.show()
+
+# === TEST ===
+if __name__ == "__main__":
+    print("=======================================")
+    print(" TEST Q10 ")
+    print(" TRACAGE DES GRAPHES ")
+    print("=======================================")
+    mesurer_iterations()
+
+
+
+# QUESTION 11: =====================================================================================================================
+def Q11_gurobi(CE, CP, capacites):
+    n_etu = len(CE)
+    n_parcours = len(CP)
+    
+    # 1. Calcul des scores de Borda
+    U_E = [[0] * n_parcours for _ in range(n_etu)]
+    for i in range(n_etu):
+        for rang, j in enumerate(CE[i]):
+            U_E[i][j] = n_parcours - rang
+            
+    U_P = [[0] * n_etu for _ in range(n_parcours)]
+    for j in range(n_parcours):
+        for rang, i in enumerate(CP[j]):
+            U_P[j][i] = n_etu - rang
+            
+    # 2. Création du modèle
+    modele = gp.Model("Maximiser_Equite_Q11")
+    modele.Params.LogToConsole = 0
+    
+    # 3. Variables de décision
+    x = modele.addVars(n_etu, n_parcours, vtype=GRB.BINARY, name="x")
+    z = modele.addVar(vtype=GRB.INTEGER, name="z") # z représente l'utilité minimale
+    
+    # 4. Fonction objectif : Maximiser z (l'utilité du pire étudiant)
+    modele.setObjective(z, GRB.MAXIMIZE)
+    
+    # 5. Contraintes
+    # Contraintes de base
+    modele.addConstrs((gp.quicksum(x[i, j] for j in range(n_parcours)) == 1 for i in range(n_etu)), name="Affectation")
+    modele.addConstrs((gp.quicksum(x[i, j] for i in range(n_etu)) <= capacites[j] for j in range(n_parcours)), name="Capacite")
+    
+    # Nouvelle contrainte Q11 : z doit être inférieur ou égal à l'utilité de CHAQUE étudiant
+    modele.addConstrs((z <= gp.quicksum(U_E[i][j] * x[i, j] for j in range(n_parcours)) for i in range(n_etu)), name="Min_Utilite")
+    
+    # 6. Optimisation
+    modele.optimize()
+    
+    # 7. Résultats
+    if modele.status == GRB.OPTIMAL:
+        print("\n=======================================")
+        print(" RÉSULTATS Q11 : PLNE (Équité - Maximiser le minimum)")
+        print("=======================================")
+        
+        affectation_Q11 = [[] for _ in range(n_parcours)]
+        utilite_totale = 0
+        utilites_etudiants = []
+        
+        for i in range(n_etu):
+            for j in range(n_parcours):
+                if x[i, j].x > 0.5:
+                    affectation_Q11[j].append(i)
+                    utilite_totale += U_E[i][j] + U_P[j][i]
+                    utilites_etudiants.append(U_E[i][j])
+                    
+        utilite_moyenne = sum(utilites_etudiants) / n_etu
+        instabilites = paires_instables(affectation_Q11, CE, CP)
+        
+        print(f"-> Utilité minimale garantie (z) : {z.x}")
+        print(f"-> Utilité moyenne des étudiants : {utilite_moyenne:.2f}")
+        print(f"-> Utilité totale (E + P) : {utilite_totale}")
+        print(f"-> Nombre exact de paires instables (Q11) : {len(instabilites)}")
+    else:
+        print("Aucune solution trouvée pour Q11.")
+
+
+# QUESTION 12: =====================================================================================================================
+def Q12_gurobi(CE, CP, capacites):
+    n_etu = len(CE)       # 13 étudiants
+    n_parcours = len(CP)  # 10 parcours
+    
+    # 1. Calcul des scores de Borda (Utilités)
+    # L'utilité maximale est le nombre d'options possibles.
+    U_E = [[0] * n_parcours for _ in range(n_etu)]
+    for i in range(n_etu):
+        for rang, j in enumerate(CE[i]):
+            U_E[i][j] = n_parcours - rang  # 10 - rang (10 pour le 1er choix, 1 pour le dernier)
+            
+    U_P = [[0] * n_etu for _ in range(n_parcours)]
+    for j in range(n_parcours):
+        for rang, i in enumerate(CP[j]):
+            U_P[j][i] = n_etu - rang       # 13 - rang (13 pour le 1er choix, 1 pour le dernier)
+            
+    # 2. Création du modèle Gurobi
+    modele = gp.Model("Maximiser_Efficacite_Q12")
+    
+    # Optionnel : Désactiver les longs logs de Gurobi dans la console pour plus de lisibilité
+    modele.Params.LogToConsole = 0 
+    
+    # 3. Variables de décision (x_ij : binaire)
+    x = modele.addVars(n_etu, n_parcours, vtype=GRB.BINARY, name="x")
+    
+    # 4. Fonction objectif : Maximiser la somme des utilités globales (étudiants + parcours)
+    modele.setObjective(
+        gp.quicksum((U_E[i][j] + U_P[j][i]) * x[i, j] for i in range(n_etu) for j in range(n_parcours)),
+        GRB.MAXIMIZE
+    )
+    
+    # 5. Contraintes
+    # Contrainte A : Chaque étudiant est affecté à exactement 1 parcours
+    modele.addConstrs((gp.quicksum(x[i, j] for j in range(n_parcours)) == 1 for i in range(n_etu)), name="Affectation_unique")
+    
+    # Contrainte B : Respect des capacités des parcours
+    modele.addConstrs((gp.quicksum(x[i, j] for i in range(n_etu)) <= capacites[j] for j in range(n_parcours)), name="Capacite_parcours")
+    
+    # 6. Lancement de l'optimisation
+    modele.optimize()
+    
+    # 7. Analyse et extraction des résultats
+    if modele.status == GRB.OPTIMAL:
+        print("\n=======================================")
+        print(" RÉSULTATS Q12 : PLNE (Efficacité totale)")
+        print("=======================================")
+        
+        utilites_etudiants = []
+        
+        for i in range(n_etu):
+            for j in range(n_parcours):
+                # x[i, j].x contient la valeur trouvée par Gurobi (0 ou 1)
+                # On utilise > 0.5 pour éviter les erreurs d'arrondi des nombres flottants
+                if x[i, j].x > 0.5: 
+                    u_etu = U_E[i][j]
+                    utilites_etudiants.append(u_etu)
+                    print(f"Étudiant {i:2d} affecté au parcours {j} (Son score de Borda : {u_etu})")
+                    
+        utilite_moyenne = sum(utilites_etudiants) / n_etu
+        utilite_minimale = min(utilites_etudiants)
+        
+        print("\n--- Réponses aux questions du rapport ---")
+        print(f"Somme totale des utilités (étudiants + parcours) : {modele.objVal}")
+        print(f"Utilité moyenne des étudiants : {utilite_moyenne:.2f}")
+        print(f"Utilité minimale d'un étudiant : {utilite_minimale}")
+
+        affectation_Q12 = [[] for _ in range(n_parcours)]
+        for i in range(n_etu):
+            for j in range(n_parcours):
+                if x[i, j].x > 0.5: 
+                    affectation_Q12[j].append(i)
+                    
+        instabilites_Q12 = paires_instables(affectation_Q12, CE, CP)
+        print(f"-> Nombre exact de paires instables (Q12) : {len(instabilites_Q12)}")
+        
+    else:
+        print("Aucune solution optimale trouvée.")
+
+
+# QUESTION 14: =====================================================================================================================
+def Q14_gurobi(CE, CP, capacites):
+    n_etu = len(CE)
+    n_parcours = len(CP)
+    
+    # 1. Calcul des scores de Borda
+    U_E = [[0] * n_parcours for _ in range(n_etu)]
+    for i in range(n_etu):
+        for rang, j in enumerate(CE[i]):
+            U_E[i][j] = n_parcours - rang
+            
+    U_P = [[0] * n_etu for _ in range(n_parcours)]
+    for j in range(n_parcours):
+        for rang, i in enumerate(CP[j]):
+            U_P[j][i] = n_etu - rang
+            
+    # 2. Boucle pour tester les valeurs de k de 1 à 10
+    for k in range(1, 11):
+        modele = gp.Model(f"Q13_Q14_k_{k}")
+        modele.Params.LogToConsole = 0 # Désactiver les logs
+        
+        x = modele.addVars(n_etu, n_parcours, vtype=GRB.BINARY, name="x")
+        
+        # Fonction objectif : Maximiser l'efficacité totale
+        modele.setObjective(
+            gp.quicksum((U_E[i][j] + U_P[j][i]) * x[i, j] for i in range(n_etu) for j in range(n_parcours)),
+            GRB.MAXIMIZE
+        )
+        
+        # Contraintes de base (Affectation unique et Capacités)
+        modele.addConstrs((gp.quicksum(x[i, j] for j in range(n_parcours)) == 1 for i in range(n_etu)), name="Affectation")
+        modele.addConstrs((gp.quicksum(x[i, j] for i in range(n_etu)) <= capacites[j] for j in range(n_parcours)), name="Capacite")
+        
+        # NOUVELLE CONTRAINTE Q13 : Garantie du Top k
+        limite_utilite = n_parcours - k
+        modele.addConstrs((gp.quicksum(U_E[i][j] * x[i, j] for j in range(n_parcours)) >= limite_utilite for i in range(n_etu)), name="Top_k")
+        
+        # Exécution de l'optimisation
+        modele.optimize()
+        
+        # 3. Si Gurobi trouve une solution, c'est que c'est le plus petit k possible !
+        if modele.status == GRB.OPTIMAL:
+            print("\n=======================================")
+            print(f" RÉSULTATS Q14 : Solution trouvée pour le plus petit k = {k}")
+            print("=======================================")
+            
+            for i in range(n_etu):
+                for j in range(n_parcours):
+                    if x[i, j].x > 0.5:
+                        u_etu = U_E[i][j]
+                        rang_obtenu = 10 - u_etu + 1
+                        print(f"Étudiant {i:2d} affecté au parcours {j} (Son choix n°{rang_obtenu})")
+                        
+            print(f"\n-> Utilité totale : {modele.objVal}")
+
+            affectation_Q14 = [[] for _ in range(n_parcours)]
+            for i in range(n_etu):
+                for j in range(n_parcours):
+                    if x[i, j].x > 0.5:
+                        affectation_Q14[j].append(i)
+                        
+            instabilites_Q14 = paires_instables(affectation_Q14, CE, CP)
+            print(f"-> Nombre exact de paires instables (Q14 k={k}) : {len(instabilites_Q14)}")
+
+
+            return # On a trouvé le plus petit k, on arrête la fonction !
+            
+    print("Aucune solution trouvée, même pour k=10.")
+
+
+
+# ==============================================================================
+# BLOC D'EXÉCUTION PRINCIPAL 
+# ==============================================================================
+if __name__ == "__main__":
+
+    Q11_gurobi(CE, CP, capacites)
+    Q12_gurobi(CE, CP, capacites)
+    Q14_gurobi(CE, CP, capacites)
+
+
+# --- CALCUL EXACT DES SCORES GALE-SHAPLEY ---
+    def calculer_utilite_GS(affectation, CE, CP):
+        n_etu = len(CE)
+        n_parcours = len(CP)
+        utilite_etudiants = 0
+        utilite_totale = 0
+        
+        for j in range(n_parcours):
+            for i in affectation[j]:
+                u_E = n_parcours - CE[i].index(j)
+                u_P = n_etu - CP[j].index(i)
+                utilite_etudiants += u_E
+                utilite_totale += (u_E + u_P)
+                
+        return utilite_totale, (utilite_etudiants / n_etu)
+
+    tot_etu, moy_etu = calculer_utilite_GS(affectations_etu, CE, CP)
+    print(f"\n-> GS Étudiants - Totale : {tot_etu}, Moyenne : {moy_etu:.2f}")
